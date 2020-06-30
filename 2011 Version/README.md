@@ -4,11 +4,11 @@ This folder holds the 2011 version of DAS3 used by the Eric Schearer lab group
 ## Building the model
 
 Tools needed:
-* A "make" tool should be installed and in the OS search path
+* A "make" tool should be installed
 * A C compiler that is suitable for building MEX functions (follow Matlab help instructions)
 * The CLANG C compiler for compiling the lengthy das3_al.c file.  It may be possible to use the other C compiler for this, but it could be very slow or run out of memory.
 
-Edit the script make.m so it can find "make" on your computer.  Then build as follows:
+Edit the script make.m so it can find "make.exe" or equivalent on your computer.  Then build as follows:
 
 >> make
 
