@@ -1,0 +1,30 @@
+% contact.a
+% calculates and applies force to a point P on the scapula
+% see das3implicit.doc for detailed explanation of the calculations
+%
+% Usage: contact(P) 
+%		P: name of point on scapula
+
+% create the point P (argument #1#) and its location x,y,z on the scapula
+Points #1#													% #1# will contain the string TS or AI
+P_AC_#1#> = Vector(Scapula, par__#1#x, par__#1#y, par__#1#z)			% uses the constants TSx, TSy, etc
+V2pts(Thorax, Scapula, AC, #1#)			% Autolev will need velocity of contact point in equations of motion
+
+% compute its global coordinates (relative to thorax)
+Px#1# = dot(P_ThoraxO_#1#>, Thorax1>)
+Py#1# = dot(P_ThoraxO_#1#>, Thorax2>)
+Pz#1# = dot(P_ThoraxO_#1#>, Thorax3>)
+
+% computes the "distance" to thorax surface
+F#1# = (Px#1#/par__Ax)^2 + (Py#1#/par__Ay)^2 + (Pz#1#/par__Az)^2 - 1
+
+% attenuate F when it is positive
+Fminus#1# = 0.5*(F#1# - sqrt(F#1#^2 + par__epscontact^2))
+
+% compute the forces						
+Fx#1# = -par__kcontact*Px#1#*(par__Ax^2 + par__Ay^2 + par__Az^2)/par__Ax^2*Fminus#1#
+Fy#1# = -par__kcontact*Py#1#*(par__Ax^2 + par__Ay^2 + par__Az^2)/par__Ay^2*Fminus#1#
+Fz#1# = -par__kcontact*Pz#1#*(par__Ax^2 + par__Ay^2 + par__Az^2)/par__Az^2*Fminus#1#
+
+% apply the force to the point P
+Force_#1#> += Fx#1#*Thorax1> + Fy#1#*Thorax2> + Fz#1#*Thorax3>
