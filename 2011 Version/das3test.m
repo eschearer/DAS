@@ -139,7 +139,7 @@ function [out1] = das3test(command, arg1)
 		% initial guess for equilibrium state
 		x = xneutral;
 		
-		% solve the equilibrium with the LM solver
+		% solve the equilibrium with the Levenberg-Marquardt method
 		tic;
 		figure(1);clf;
 		[x, normf, info, niter] = lmopt(@resfun, x, options);
@@ -218,7 +218,7 @@ function [out1] = das3test(command, arg1)
 		disp(num2str(timeconst(1:5)','%12.4e'));
 	end
 	
-	function [f,J] = resfun(x);
+	function [f,J] = resfun(x)
 	% returns f and df/dx for equilibrium solver
 		neval = neval + 1;
 		[f, J, dfdxdot, dfdu] = das3mex(x,xdot,u);
@@ -546,6 +546,7 @@ function isometric_curves(x, Lceopt, dofnames, joint1, range1, joint2, range2)
     legends = {};
     for angle2 = range2
         angles(joint2) = angle2;
+        fprintf('isometric simulations for %s at %8.3f deg\n', dofnames{joint2},angle2);
         x(joint2) = angle2*pi/180;
         pasmoments = [];
         posmoments = [];
@@ -622,7 +623,7 @@ function isokinetic_curves(x, momentarms, Lceopt, dofnames, joint, range)
     % dofnames      the names of the 11 degrees of freedom
     % joint         for which joint we will calculate curve
     % range         the range of velocities
-
+    
     % angles in degrees
     angles = x(1:11)'*180/pi;
     angvel = zeros(size(angles));
@@ -631,6 +632,7 @@ function isokinetic_curves(x, momentarms, Lceopt, dofnames, joint, range)
     negmoments = [];
     for vel = range
         angvel(joint) = vel;
+        fprintf('isokinetic simulations for %s at %8.3f deg/s\n', dofnames{joint},vel);
         pasmoments = [pasmoments maxmoment(joint, angles, angvel, momentarms, Lceopt, 0)];
         posmoments = [posmoments maxmoment(joint, angles, angvel, momentarms, Lceopt, 1)];
         negmoments = [negmoments maxmoment(joint, angles, angvel, momentarms, Lceopt, -1)];
@@ -658,7 +660,7 @@ function isokinetic_curves(x, momentarms, Lceopt, dofnames, joint, range)
     title([char(dofnames(joint)) ': negative moment']);
 
     % plot passive moments in middle column of figure
-    subplot(2,3,2);
+    subplot(4,3,[2 3]);
     plot(range, pasmoments,'x-');
     ylim([minmom-0.1*momrange maxmom+0.1*momrange]);
     title([char(dofnames(joint)) ': passive moment']);
@@ -704,20 +706,24 @@ function mom = maxmoment(joint, angles, angvel, momentarms, Lceopt, sign)
     u = zeros(nmus,1);				% no stim, we don't care about activation dynamics here
     x = [angles angvel zeros(1,nmus) Act']';
 
-    for imus=1:length(Lceopt)		% max number of Newton iterations
+    % unfortunately, fzero (1-dimensional root finding) is the only solver
+    % that is robust enough here.  This makes the code slow.
+    % Multidimensional solvers, doing all muscles at the same time, fsolve,
+    % lmopt, and simple Newton method all failed.
+    options = optimset('TolX', 1e-6);
+	for imus=1:nmus                 % go through all muscles
         Lce = 1.0;                  % initial guess for this muscle's Lce
-        [Lce, Fval, Flag] = fzero(@contraction_equilibrium, Lce);
-    end
+        [Lce, Fval, flag] = fzero(@contraction_equilibrium, Lce, options);  % find Lce at contraction equilibrium
+        if (flag < 0)
+            fprintf('maxmoment: muscle contraction equilibrium not found within max number of iterations.\n');
+            keyboard
+        end
+	end 
 
-    if (flag < 0)
-        fprintf('maxmoment: muscle contraction equilibrium not found within max number of iterations.\n');
-        keyboard
-    end
-
-    % now determine the joint moments at this state of the system
+% now determine the joint moments at this state of the system
     moments = das3mex('Jointmoments', x);
     mom = moments(joint);
-
+    
     function [F] = contraction_equilibrium(Lce)
         x(2*ndof+imus) = Lce;
         f = das3mex(x, xdot, u);
