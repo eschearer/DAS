@@ -10,7 +10,7 @@ Tools needed:
 
 Edit the script make.m so it can find "make" on your computer.  Then build as follows:
 
->> make
+	>> make
 
 We assume that the kinematic structure of the model is never changed.  If you do that, das3_al_raw.c should be rebuilt which requires Autolev.  The Makefile will automatically do this, but only on Ton's computer which has an Autolev license.
 

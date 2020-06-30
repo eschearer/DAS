@@ -26,9 +26,9 @@ function [out1] = das3test(command, arg1)
 		error('dofnames has incorrect size');
 	end
 
-	% run make.bat to make sure we are using latest version of MEX function
+	% run make.m to make sure we are using latest version of MEX function
 	clear mex
-	!make
+	make
 	
 	% Initialize the model
 	das3mex();
@@ -54,7 +54,7 @@ function [out1] = das3test(command, arg1)
         
     xlims =  xlimdeg*pi/180;
  
-   % ======================= do the stickfigure test
+    % ======================= do the stick figure test
 	if strcmp(command, 'stick')
 		disp('Stick figure test...');
 		figure(1);clf;
@@ -145,8 +145,11 @@ function [out1] = das3test(command, arg1)
 		[x, normf, info, niter] = lmopt(@resfun, x, options);
 		if (info ~= 0)
 			disp('Warning: equilibrium not found');
-			disp('dbquit if you do not want this result saved.');
+            disp('type dbcont to continue anyway');
+			disp('type dbquit if you do not want this result saved.');
 			keyboard
+        else
+            fprintf('Equilibrium was found in %d iterations\n', niter);
 		end
 
 		disp(['Norm of f was: ',num2str(normf,'%10.4e')]);
@@ -722,3 +725,74 @@ function mom = maxmoment(joint, angles, angvel, momentarms, Lceopt, sign)
     end
 
 end
+%=================================================================================================
+function [x, fnorm, info, iterations] = lmopt(fun, x0, options)
+	% solves a least-squares optimization problem using the Levenberg-Marquardt method from Numerical Recipes
+
+	% initialize
+	info = 0;
+	iterations = 0;
+	x = x0;
+	[f, J] = fun(x);
+	bestfnorm = norm(f);
+	if isfield(options, 'lambda')
+		lambda = options.lambda;
+	else
+		lambda = 0.001;
+	end
+		
+	% Start loop
+	while (1)
+		iterations = iterations + 1;
+		
+		% compute augmented Hessian H2= J'*J + lambda*I
+		H2 = J'*J + lambda * eye(size(x,1));
+
+		% solve dx from modified normal equations: H2*dx = -J'*f
+		dx = -H2 \ (J'*f);
+		
+		% limit the step size, if requested
+		if isfield(options, 'stepmax')
+			stepfrac = max(abs(dx) ./ options.stepmax);
+			if stepfrac > 1
+				dx = dx/stepfrac;		% reduce step by this fraction
+			end
+		end
+		
+		% save the current iterate and do the step dx
+		xsave = x;
+		fsave = f;
+		x = x + dx;
+		
+		% check if number of iterations exceeded
+		if (iterations > options.maxiterations)
+			info = 1;
+			return
+		end
+		
+		% See how good we are doing now
+		[f,J] = fun(x);					
+		fnorm = norm(f);
+
+		% Use the numerical recipes algorithm to adjust lambda
+		if (fnorm <= bestfnorm)							% it is an improvement
+			if (1-fnorm/bestfnorm) < options.ftol		% was reduction in f small enough?
+				if sqrt(mean(dx.^2)) < options.xtol		% was change in x small enough?
+					info = 0;
+					return;
+				end
+			end
+			% otherwise, keep iterating
+			bestfnorm = fnorm;
+			lambda = lambda/2.0;
+		else
+			% not an improvement, undo the step and try again with larger lambda
+			x = xsave;
+			f = fsave;
+			lambda = lambda*2.0;
+		end
+		% fprintf('Norm of f: %10.4e   Lambda: %10.4e   RMSdx: %10.4e  %10.4e\n', fnorm, lambda, sqrt(mean(dx.^2)),bestfnorm);
+	end
+
+end
+
