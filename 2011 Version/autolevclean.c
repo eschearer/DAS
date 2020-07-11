@@ -38,9 +38,9 @@ int main() {
 	fprintf(fid2,"#include \"das3mex.h\"\n");
 	fprintf(fid2,"#include <math.h>\n\n");
 	fprintf(fid2,"void das3_al(param_struct* par, double q[NDOF], double qd[NDOF], double qdd[NDOF],\n");
-	fprintf(fid2,"   double mom[NDOF], double mTH[3], double exF[2], double Zero[NDOF], double dz_dq[NDOF][NDOF],\n");
+	fprintf(fid2,"   double mTH[3], double exF[2], double Zero[NDOF], double dz_dq[NDOF][NDOF],\n");
 	fprintf(fid2,"   double dz_dqd[NDOF][NDOF], double dz_dqdd[NDOF][NDOF],\n");
-	fprintf(fid2,"   double dz_dmom[NDOF][NDOF], double F_GH[3], double F_SCAP[2][3],\n");
+	fprintf(fid2,"   double F_GH[3], double F_SCAP[2][3],\n");
 	fprintf(fid2,"   double Stick[NSTICK][3], double qTH[3]) {\n");
 	
 	// make a macro for the "sign" function
@@ -52,19 +52,6 @@ int main() {
 		fprintf(fid2,"\tdouble q%1dp = qd[%1d];\n", i+1,i);	
 		fprintf(fid2,"\tdouble q%1dpp = qdd[%1d];\n", i+1,i);	
 	}
-
-	// generate C code to copy 11 joint moments into scalar variables
-	fprintf(fid2,"\tdouble MSCy = mom[0];\n");
-	fprintf(fid2,"\tdouble MSCz = mom[1];\n");
-	fprintf(fid2,"\tdouble MSCx = mom[2];\n");
-	fprintf(fid2,"\tdouble MACy = mom[3];\n");
-	fprintf(fid2,"\tdouble MACz = mom[4];\n");
-	fprintf(fid2,"\tdouble MACx = mom[5];\n");
-	fprintf(fid2,"\tdouble MGHy = mom[6];\n");
-	fprintf(fid2,"\tdouble MGHz = mom[7];\n");
-	fprintf(fid2,"\tdouble MGHyy = mom[8];\n");
-	fprintf(fid2,"\tdouble MELx = mom[9];\n");
-	fprintf(fid2,"\tdouble MPSy = mom[10];\n");
 	
 	// declare some internal variables
 	fprintf(fid2,"\tdouble MHx, MHy, MHz;\n");

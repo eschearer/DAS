@@ -222,35 +222,6 @@ StretchPositive := 0.5*(Stretch + sqrt(Stretch^2 + par__epsconoid^2))	% Eliminat
 Uvec> = P_conO_conI> / LOI 												% Unit vector from conoid origin to insertion
 Force(conO/conI, -par__conK*StretchPositive*Uvec> ) 				    % Spring force
  
-%----------------------------------------------------------------------------
-% Moments (exactly one for each of the 11 rotational DOF of the model)
-%----------------------------------------------------------------------------
-
-Variables MSCx, MSCy, MSCz					% moments on clavicle
-Variables MACx, MACy, MACz					% moments on scapula
-Variables MGHy, MGHz, MGHyy					% moments on shoulder
-Variables MELx								% moment on elbow flexion
-Variables MPSy								% moment on forearm pronation
-
-%--------------------------------------------------------------------
-% Apply a joint moment to each hinge
-%--------------------------------------------------------------------
-Torque(Thorax/ClavicleA,    MSCy*Thorax2>)
-Torque(ClavicleA/ClavicleB, MSCz*ClavicleA3>)
-Torque(ClavicleB/Clavicle,  MSCx*ClavicleB1>)
-
-Torque(Clavicle/ScapulaA,   MACy*Clavicle2>)
-Torque(ScapulaA/ScapulaB,   MACz*ScapulaA3>)
-Torque(ScapulaB/Scapula,    MACx*ScapulaB1>)
-
-% problem with singularities at GH when q8=0? -- not if we limit range of motion (in das3mex.c) to make gimbal lock unlikely
-Torque(Scapula/HumerusA,    MGHy*Scapula2>)
-Torque(HumerusA/HumerusB,   MGHz*HumerusA3>)
-Torque(HumerusB/Humerus,    MGHyy*HumerusB2>)
-
-Torque(Humerus/Ulna, 	MELx*FlexionAxis>)
-Torque(Ulna/Radius, 	MPSy*PronationAxis>)
-
 %--------------------------------------------------------------------
 % Determine the YZY rotation angles from thorax to humerus
 % Apply the external torques on the axes of this joint coordinate system
@@ -370,14 +341,12 @@ Encode F_GH
 q   = [q1  , q2  , q3  , q4  , q5  , q6  , q7  , q8  , q9  , q10  , q11  ]
 qd  = [q1' , q2' , q3' , q4' , q5' , q6' , q7' , q8' , q9' , q10' , q11' ]
 qdd = [q1'', q2'', q3'', q4'', q5'', q6'', q7'', q8'', q9'', q10'', q11'']
-mom = [MSCy, MSCz, MSCx, MACy, MACz, MACx, MGHy, MGHz, MGHyy, MELx, MPSy];
 
 % generate expressions for implicit equation of motion and its Jacobians
 dz_dq = ZEE(D(Zero,q))
 dz_dqd = ZEE(D(Zero,qd))
 dz_dqdd = ZEE(D(Zero,qdd))
-dz_dmom = ZEE(D(Zero,mom))
-Encode Zero, dz_dq, dz_dqd, dz_dqdd, dz_dmom
+Encode Zero, dz_dq, dz_dqd, dz_dqdd
 
 % write all Encoded expressions to C file
 Code Algebraic() das3_al_raw.c

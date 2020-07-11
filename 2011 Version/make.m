@@ -3,6 +3,7 @@ function make
     % runs the Makefile to build the DAS3 mex function
     % should be configured depending on each computer's location of the make tool
 
+	clear mex;		% in case one of the MEX functions is currently loaded
     computer = getenv('COMPUTERNAME');
 
     if strcmp(computer, 'LRI-102855')       % Ton's computer
@@ -12,4 +13,5 @@ function make
     else
        error('In make.m, please add MAKE setup for your computer: %s', computer); 
     end
+	
 end 

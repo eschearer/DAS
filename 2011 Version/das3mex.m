@@ -28,7 +28,7 @@ function [f, dfdx, dfdxdot, dfdu, FGH, FSCAP, qTH] = das3mex(x, xdot, u, M, exF)
 %						(to simulate a mobile arm support)
 
 % Outputs
-%	f		(298 x 1) 			Dynamics imbalance
+%	f		(298 x 1) 			Dynamics residuals (imbalance)
 
 % Optional outputs
 %	dfdx	(298 x 298 sparse) 	Jacobian of f with respect to x

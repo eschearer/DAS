@@ -1,7 +1,12 @@
 # Files we don't want in the repository:
 
 # das3_al.c will be created from das3_al_raw.c by Makefile
-das3_al.c   		
+das3_al.c
+das3steptest.txt
+equilibrium.txt
+equilibrium.sto
+simulation.mat
+simulation.sto		
 
 # matlab autosave files
 *.asv

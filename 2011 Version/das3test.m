@@ -129,38 +129,35 @@ function [out1] = das3test(command, arg1)
 		u = zeros(nmus,1);
 		xdot = zeros(nstates,1);
 		
-		% settings for the Levenberg-Marquardt (LM) solver
-		neval = 0;
-		options.xtol = 1e-10;
-		options.ftol = 1e-10;
-		options.lambda = 1;
-		options.maxiterations = 5000;
-		
 		% initial guess for equilibrium state
-		x = xneutral;
+		x = xneutral;      % this initial guess works for sure, but rand(298,1) also works sometimes
 		
-		% solve the equilibrium with the Levenberg-Marquardt method
+		% solve the equilibrium with fsolve
 		tic;
 		figure(1);clf;
-		[x, normf, info, niter] = lmopt(@resfun, x, options);
-		if (info ~= 0)
+        options = optimoptions('fsolve','SpecifyObjectiveGradient', true, 'Display','none', ...
+            'FunctionTolerance', 1e-12, 'OptimalityTolerance', 1e-12, ...
+            'StepTolerance', 1e-12);
+        neval = 0;
+        [x,fval,exitflag,output] = fsolve(@resfun, x, options);
+		if (exitflag < 1)
 			disp('Warning: equilibrium not found');
             disp('type dbcont to continue anyway');
 			disp('type dbquit if you do not want this result saved.');
 			keyboard
         else
-            fprintf('Equilibrium was found in %d iterations\n', niter);
+            fprintf('Equilibrium was found in %d iterations\n', output.iterations);
 		end
 
-		disp(['Norm of f was: ',num2str(normf,'%10.4e')]);
+		disp(['Norm of f was: ',num2str(norm(fval),'%10.4e')]);
 		disp('This must be close to zero, otherwise it is not an equilibrium');
 		das3stick(x);
 		disp('Equilibrium posture is shown in Figure 1');
 		
 		% save the result
 		make_osimm('equilibrium',x(1:11));
-		save('equilibrium.mat','x');
-		disp('Equilibrium state was stored on equilibrium.mat');
+		save('equilibrium.txt','x','-ascii','-double');
+		disp('Equilibrium state was stored on equilibrium.txt');
 		disp('Equilibrium posture was stored on equilibrium.sto');
 
 		disp('');
@@ -223,10 +220,10 @@ function [out1] = das3test(command, arg1)
 		neval = neval + 1;
 		[f, J, dfdxdot, dfdu] = das3mex(x,xdot,u);
 		
-		% produce output once every second
-		if (toc >= 1)
+		% produce output once every so often
+		if (toc >= 0.1)
 			tic;
-			fprintf('Equilibrium eval # %d: Norm of f: %12.5e\n', neval, norm(f));
+			fprintf('Equilibrium eval # %4d: Norm of f: %12.5e\n', neval, norm(f));
 % 			das3stick(x);
 % 			drawnow;
 		end
@@ -296,7 +293,7 @@ function [out1] = das3test(command, arg1)
         Lceopt = das3mex('LCEopt');
         
 		% load equilbrium state x
-		load('equilibrium.mat');
+		x = load('equilibrium.txt');
                 
         % shoulder elevation moment-angle curves, 30-deg intervals in
         % elevation angle
@@ -320,7 +317,7 @@ function [out1] = das3test(command, arg1)
         Lceopt = das3mex('LCEopt');
         
 		% load equilbrium state x
-		load('equilibrium.mat');
+		x = load('equilibrium.txt');
         
         % muscle moment arms in this position
         momentarms = full(das3mex('Momentarms', x));
@@ -341,7 +338,7 @@ function [out1] = das3test(command, arg1)
 		neval = 0;
 		nodefun = 0;
 		printinterval = 3.0;
-		load equilibrium
+		x = load('equilibrium.txt');
 		times = [0:0.01:4];
         starttime = tic;
 		[tout, xout] = ode23(@odefun, times, x);
@@ -368,8 +365,14 @@ function [out1] = das3test(command, arg1)
 	% this is done with our own implicit algorithm, which will be used for real time simulation
 	if strcmp(command, 'simulate')
 		disp('Simulating arm movements...');
+        
+        % first run the simulation with the C function das3step (in das3mex.c)
+        disp('das3steptest uses the das3step C function in das3mex.c');
+        das3steptest;
 				
-		% set simulation parameters
+        % now run it with the Matlab function das3step.m
+		% set simulation parameters, default time step is 3 ms
+        disp('Now running simulation with the das3step.m code...');
 		t = 0;
 		tend = 4.0;
 		if (nargin < 2)
@@ -385,7 +388,7 @@ function [out1] = das3test(command, arg1)
 		tout(1) = t;
 		
 		% load equilbrium state x
-		load('equilibrium.mat');
+		x = load('equilibrium.txt');
 		
 		% run simulation
 		xout(1,:) = x';
@@ -408,6 +411,11 @@ function [out1] = das3test(command, arg1)
 		% export to mat file and to opensim motion file
 		save simulation tout xout
 		make_osimm('simulation', xout(:,1:11), tout);
+        
+        % compare joint angles to the result of das3steptest
+        x1 = load('das3steptest.txt');
+        fprintf('joint angle difference between C and Matlab version of das3step: %12.5e deg\n', ...
+            rms(rms(x1-xout))*180/pi);
 		
 		% compare joint angles to the explicit simulation test and report RMS difference
 		tout_test = tout;
@@ -416,7 +424,7 @@ function [out1] = das3test(command, arg1)
 			load('explicit_simulation');		% this loads tout and xout from the mat file
 		else
 			disp('Could not load explicit_simulation.mat');
-			disp('Run the explicit simulation test first, if you want to quantify simulation errors.');
+			disp('Run das3test(''explicit'') first, if you want to quantify simulation errors.');
 			return
 		end
 		
@@ -437,7 +445,7 @@ function [out1] = das3test(command, arg1)
 		
 	end
 
-	%=====================================================
+	%==================================================================================
 	% The following function solves the state derivatives from state and control,
 	% so we can simulate using a Matlab explicit ODE solver.
 	% There are more efficient ways to do this, but this is just for model testing, not for efficient simulation.
@@ -449,12 +457,12 @@ function [out1] = das3test(command, arg1)
 		end
 		xdot = xdotinitialguess;
 		u = stimfun(t);
-% 		if exist('fsolve.m') > 1
-% 			% use matlab's fsolve if optimization toolbox is installed
-% 			options = optimset(optimset('fsolve'),'Jacobian','on','Display','off');
-% 			[xdot, f] = fsolve(@zero,xdot,options);
-%             resnorm = norm(f);
-% 		else
+		if 0 && exist('fsolve.m') > 1
+			% use matlab's fsolve if optimization toolbox is installed
+			options = optimset(optimset('fsolve'),'Jacobian','on','Display','off');
+			[xdot, f] = fsolve(@zero,xdot,options);
+            resnorm = norm(f);
+		else
 			% use a simple Newton-Raphson method
 			% this actually turns out to be much faster than fsolve and equally accurate
 			resnorm = 1e10;
@@ -463,7 +471,7 @@ function [out1] = das3test(command, arg1)
 				xdot = xdot - (J\f);		% do one full Newton step
 				resnorm = norm(f);			% calculate norm of residuals
 			end
-% 		end
+		end
 		% give some output on screen, every once in a while
 		if (toc > printinterval)
 			tic;
@@ -731,74 +739,5 @@ function mom = maxmoment(joint, angles, angvel, momentarms, Lceopt, sign)
     end
 
 end
-%=================================================================================================
-function [x, fnorm, info, iterations] = lmopt(fun, x0, options)
-	% solves a least-squares optimization problem using the Levenberg-Marquardt method from Numerical Recipes
 
-	% initialize
-	info = 0;
-	iterations = 0;
-	x = x0;
-	[f, J] = fun(x);
-	bestfnorm = norm(f);
-	if isfield(options, 'lambda')
-		lambda = options.lambda;
-	else
-		lambda = 0.001;
-	end
-		
-	% Start loop
-	while (1)
-		iterations = iterations + 1;
-		
-		% compute augmented Hessian H2= J'*J + lambda*I
-		H2 = J'*J + lambda * eye(size(x,1));
-
-		% solve dx from modified normal equations: H2*dx = -J'*f
-		dx = -H2 \ (J'*f);
-		
-		% limit the step size, if requested
-		if isfield(options, 'stepmax')
-			stepfrac = max(abs(dx) ./ options.stepmax);
-			if stepfrac > 1
-				dx = dx/stepfrac;		% reduce step by this fraction
-			end
-		end
-		
-		% save the current iterate and do the step dx
-		xsave = x;
-		fsave = f;
-		x = x + dx;
-		
-		% check if number of iterations exceeded
-		if (iterations > options.maxiterations)
-			info = 1;
-			return
-		end
-		
-		% See how good we are doing now
-		[f,J] = fun(x);					
-		fnorm = norm(f);
-
-		% Use the numerical recipes algorithm to adjust lambda
-		if (fnorm <= bestfnorm)							% it is an improvement
-			if (1-fnorm/bestfnorm) < options.ftol		% was reduction in f small enough?
-				if sqrt(mean(dx.^2)) < options.xtol		% was change in x small enough?
-					info = 0;
-					return;
-				end
-			end
-			% otherwise, keep iterating
-			bestfnorm = fnorm;
-			lambda = lambda/2.0;
-		else
-			% not an improvement, undo the step and try again with larger lambda
-			x = xsave;
-			f = fsave;
-			lambda = lambda*2.0;
-		end
-		% fprintf('Norm of f: %10.4e   Lambda: %10.4e   RMSdx: %10.4e  %10.4e\n', fnorm, lambda, sqrt(mean(dx.^2)),bestfnorm);
-	end
-
-end
 
