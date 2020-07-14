@@ -235,7 +235,7 @@ end
 function das3stick(x)
 % draw a stick figure of the DAS3 model in state(s) x.
 
-	% radii of thorax ellipsoid (must be same as in das3.al)
+	% radii of thorax ellipsoid (must be same as in das3mex.c) (they are, on 7/13/2020)
 	Ax  =  0.1470;
 	Ay  =  0.2079;
 	Az  =  0.0944;	
