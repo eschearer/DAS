@@ -16,9 +16,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#ifndef DAS3STEP
-#include <mex.h>
-#endif
 #include "lapack.h"
 #include "das3mex.h"
 
@@ -131,22 +128,6 @@ static double qTH[3],mTH[3];
 
 // Low-level functions are first
 // Externally callable functions are das3step (to be called from C) and mexFunction (to be called from Matlab).
-
-// get pointer to a MEX input matrix
-static double* getmexinput(const mxArray *prhs[], int argnum, int nrows_expected, int ncols_expected) {
-	mwIndex nrows, ncols;
-	nrows = mxGetM(prhs[argnum-1]);
-	ncols = mxGetN(prhs[argnum-1]);
-	if (!mxIsDouble(prhs[argnum-1]) || mxIsComplex(prhs[argnum-1]) ) {
-		printf("Input %d must be double\n", argnum);
-		mexErrMsgTxt("das3mex: Incorrect type for input.");
-	}
-	if ((nrows != nrows_expected) || (ncols != ncols_expected) ) {
-		printf("Input %d must be a %d x %d matrix vector\n", argnum, nrows_expected, ncols_expected);
-		mexErrMsgTxt("das3mex: Incorrect size for input.");
-	}
-	return mxGetPr(prhs[argnum-1]);
-}
 
 // ===================================================================================
 //	normalize_vector: normalizes a 1x3 vector
@@ -1036,6 +1017,24 @@ int das3step(		double x[NSTATES],		// input/output: state before and after the t
 }
 
 #else
+	
+#include <mex.h>
+
+// get pointer to a MEX input matrix
+static double* getmexinput(const mxArray *prhs[], int argnum, int nrows_expected, int ncols_expected) {
+	mwIndex nrows, ncols;
+	nrows = mxGetM(prhs[argnum-1]);
+	ncols = mxGetN(prhs[argnum-1]);
+	if (!mxIsDouble(prhs[argnum-1]) || mxIsComplex(prhs[argnum-1]) ) {
+		printf("Input %d must be double\n", argnum);
+		mexErrMsgTxt("das3mex: Incorrect type for input.");
+	}
+	if ((nrows != nrows_expected) || (ncols != ncols_expected) ) {
+		printf("Input %d must be a %d x %d matrix vector\n", argnum, nrows_expected, ncols_expected);
+		mexErrMsgTxt("das3mex: Incorrect size for input.");
+	}
+	return mxGetPr(prhs[argnum-1]);
+}
 
 // =========================================================================
 // mexFunction: this is the actual MEX function interface
