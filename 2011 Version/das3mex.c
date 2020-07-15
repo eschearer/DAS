@@ -16,6 +16,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#ifndef DAS3STEP
+#include <mex.h>
+#endif
 #include "mex.h"
 #include "lapack.h"
 #include "das3mex.h"
