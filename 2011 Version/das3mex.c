@@ -16,7 +16,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include "lapack.h"
 #include "das3mex.h"
 
 // M_PI is known in gcc but possibly not in other compilers
@@ -475,6 +474,7 @@ int ReadMuscles(char error_msg[]) {
 double MusclePath(muscleprop *mus, double q[NDOF], double dL_dq[NDOF], double dL_dqdq[NDOF][NDOF]) {
 
 	// returns the length Lm and its gradient dLm/dq for muscle m
+	// we need the second derivatives of L if we're generating dynamics with derivatives
 	
 	int i,j,k,m,kdof,mdof;
 	double L, term, dterm;
@@ -483,8 +483,7 @@ double MusclePath(muscleprop *mus, double q[NDOF], double dL_dq[NDOF], double dL
 	L = 0.0;
 	for (i=0; i<NDOF; i++) {
 		dL_dq[i] = 0.0;    
-		for (j=0; j<NDOF; j++)		
-			dL_dqdq[i][j] = 0.0;       
+		if (do_derivatives) for (j=0; j<NDOF; j++) dL_dqdq[i][j] = 0.0;       
 	}		
 	
 	// add contributions from each polynomial term
@@ -506,18 +505,19 @@ double MusclePath(muscleprop *mus, double q[NDOF], double dL_dq[NDOF], double dL
 				dterm = mus->expon[i][k]*term/q[kdof];
 				dL_dq[kdof] = dL_dq[kdof] + dterm;
 			
-				// second derivatives dL_dqk_dqm for m not equal to k
-				for (m=0; m < k; m++) {									// no need for m > k because the dL_dqdq matrix is symmetric
-					mdof = mus->musdof[m];
-					if ((mus->expon[i][m] > 0) && (q[mdof] != 0.0))
-						dL_dqdq[kdof][mdof] = dL_dqdq[kdof][mdof] + mus->expon[i][m]*dterm/q[mdof];
-						dL_dqdq[mdof][kdof] = dL_dqdq[kdof][mdof] ;		// symmetry
-				}
-				
-				// second derivatives dL_dqk_dqk
-				if (mus->expon[i][k] > 1)
-					dL_dqdq[kdof][kdof] = dL_dqdq[kdof][kdof] + (mus->expon[i][k]-1)*dterm/q[kdof];
+				if (do_derivatives) {
+					// second derivatives dL_dqk_dqm for m not equal to k
+					for (m=0; m < k; m++) {									// no need for m > k because the dL_dqdq matrix is symmetric
+						mdof = mus->musdof[m];
+						if ((mus->expon[i][m] > 0) && (q[mdof] != 0.0))
+							dL_dqdq[kdof][mdof] = dL_dqdq[kdof][mdof] + mus->expon[i][m]*dterm/q[mdof];
+							dL_dqdq[mdof][kdof] = dL_dqdq[kdof][mdof] ;		// symmetry
+					}
 					
+					// second derivatives dL_dqk_dqk
+					if (mus->expon[i][k] > 1)
+						dL_dqdq[kdof][kdof] = dL_dqdq[kdof][kdof] + (mus->expon[i][k]-1)*dterm/q[kdof];
+				}	
 			}
 		}
     }
@@ -820,12 +820,17 @@ void das3_dynamics (double x[NSTATES], double xdot[NSTATES], double u[NSTATES],
 	// the final NMUS rows of the IDE are the muscle activation dynamics: da/dt - (u-a)(c1*u + c2) = 0
 	for (i=0; i<NMUS; i++) f[2*NDOF+NMUS+i] =  h[i];
 	
+	// The Jacobian matrices df/dx, df/dxdot, df/du have been stored in global variables
+	// by the activation, contraction, and multibody dynamics functions.
+	
 }
 
 // ====================================================================================================
 // das3step function is compiled when compiler command line includes /D DAS3STEP
 // ====================================================================================================
 #ifdef DAS3STEP		
+
+#include "lapack.h"
 
 int das3step(		double x[NSTATES],		// input/output: state before and after the time step
 					double uin[NMUS], 		// input: muscle controls
