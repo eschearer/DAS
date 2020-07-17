@@ -8,8 +8,10 @@ function make
 
     if strcmp(computer, 'LRI-102855')       % Ton's computer
         !"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.25.28610\bin\Hostx64\x64\nmake" /nologo
-    elseif strcmp(computer, '...')
-
+    elseif strcmp(computer, 'FH104K-X2G3')  % Eric's computer
+        !"C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Tools\MSVC\14.26.28801\bin\Hostx64\x64\nmake" /nologo
+    elseif strcmp(computer, '')  % Eric's computer
+        
     else
        error('In make.m, please add MAKE setup for your computer: %s', computer); 
     end
