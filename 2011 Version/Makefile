@@ -36,7 +36,8 @@ autolevclean.exe: autolevclean.c
 		
 # make das3step.obj from das3mex.c (see #ifdef DAS3STEP in das3mex.c)
 das3step.obj: das3mex.c das3mex.h 
-		$(CC) $(CFLAGS) /c /DDAS3STEP /Fodas3step.obj das3mex.c
+		$(MEX) -c -DDAS3STEP das3mex.c
+		rename das3mex.obj das3step.obj
 
 # make the das3step testing program.  the eventual S-function should be compiled in a similar way
 # Matlab mex recognizes the -lmwlapack option to link with the LAPACK linear algebra functions
