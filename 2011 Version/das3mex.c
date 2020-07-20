@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include "lapack.h"
+#include "C:\Program Files\MATLAB\R2020a\extern\include\lapack.h"
 #include "das3mex.h"
 
 // M_PI is known in gcc but possibly not in other compilers
