@@ -8,7 +8,7 @@ CC = "C:\Program Files\LLVM\bin\clang-cl.exe"		# clang compiler
 # compiler options for C compiler
 # remove /Ofast for fast compilation (30 sec) and slower execution
 # add /Ofast for for slower compilation (20 min) and abotu 2x faster execution
-CFLAGS=/nologo /w /Ofast	
+CFLAGS=/nologo /w 	
 
 # uncomment the following line to build both mex functions (the S-function binary should be added here also)
 all: das3mex.mexw64 das3steptest.mexw64	
