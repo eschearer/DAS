@@ -129,6 +129,65 @@ static double qTH[3],mTH[3];
 // Low-level functions are first
 // Externally callable functions are das3step (to be called from C) and mexFunction (to be called from Matlab).
 
+// ==============================================
+// linear equation solver
+// ==============================================
+int gaussj(int N, double* A, double *b) {
+// Solves A*x=b using Gauss-Jordan elimination with partial pivoting
+// A is a NxN matrix, stored as a sequence of N columns
+// b is a Nx1 column
+// result x is returned in b
+// function returns 1 when successful, 0 when zero pivot is detected
+
+    int i,j,k,jj,ipivot;
+    double absAji, Amax, Aij, tmp;
+    
+    // This is the main loop that goes through all the columns:
+    for (j=0; j<N; j++) {
+
+        // Find the largest element in the column, starting at row j,
+        // to use as a pivot:
+        Amax = 0;
+		k = N*j+j;
+        for (i=j; i<N; i++) {
+            absAji = fabs(A[k++]);
+            if (absAji > Amax) {
+                Amax = absAji;
+                ipivot = i;
+            }
+        }
+        if (Amax == 0) return 1;  // zero pivot (matrix is singular)
+
+        // Divide row ipivot by A(ipivot,j), and do the same to b
+        // This makes A(ipivot,j) equal to 1.0
+        // At the same time, exchange rows ipivot and j so A(i,j) goes to the diagonal
+        Aij = A[N*j+ipivot];
+        for (jj=0; jj<N; jj++) {
+            // divide row ipivot of A by Aij and exchange row ipivot and row j
+            tmp = A[N*jj+ipivot]/Aij;
+            A[N*jj+ipivot] = A[N*jj+j];
+            A[N*jj+j] = tmp;
+        }
+        // same for b
+        tmp  = b[ipivot]/Aij;
+        b[ipivot] = b[j];
+        b[j] = tmp;
+        
+        // Subtract multiples of row j from all other rows, to zero out
+        // all of column j of A, except for element A(j,j)
+        // and do same for b
+        for (i=0; i<N; i++) if (i != j) {
+            Aij = A[N*j+i];
+			if (Aij != 0.0) {
+				for (jj=j; jj<N; jj++) { 
+					A[N*jj+i] = A[N*jj+i] - Aij*A[N*jj+j];
+				}
+				b[i] = b[i] - Aij*b[j];
+			}
+        }
+    }
+    return 0;  // zero indicates success
+}
 // ===================================================================================
 //	normalize_vector: normalizes a 1x3 vector
 //	(from Dynamics Pipeline)
@@ -988,6 +1047,12 @@ int das3step(		double x[NSTATES],		// input/output: state before and after the t
 	// subtract A2*dx2 from b1.  A2 only has nonzeros in the contraction dynamics rows, and there it is diagonal dg/da
 	for (i=0; i<NMUS; i++) b1[2*NDOF+i] = b1[2*NDOF+i] - dg_da[i]*dx[2*NDOF+NMUS+i];
 	
+	#ifdef GAUSSJ
+	// do the linear solve with the gauss-jordan solver
+		if ( gaussj(2*NDOF+NMUS,A1,b1) ) {
+			printf("das3step: gaussj detected a zero pivot.\n");
+		}
+	#else	
 	// do the linear solve for dx1 using LAPACK function dgesv
 	{
 		size_t one = 1;
@@ -1000,8 +1065,9 @@ int das3step(		double x[NSTATES],		// input/output: state before and after the t
 			printf("das3step: dgesv info code is %d\n", info);
 			return 3; 
 		}
-		for (i=0; i<2*NDOF+NMUS; i++) dx[i] = b1[i];	// copy the result into the first 160 elements of dx
 	}
+	#endif
+	for (i=0; i<2*NDOF+NMUS; i++) dx[i] = b1[i];	// copy the result into the first 160 elements of dx
 	
 	// return x = x+dx, update xdot
 	for (i=0; i<NSTATES; i++) {

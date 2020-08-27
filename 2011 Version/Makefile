@@ -7,8 +7,8 @@ MEX = mex											# this should go to the mex.bat file in the current Matlab v
 CC = "C:\Program Files\LLVM\bin\clang-cl.exe"		# clang compiler
 # compiler options for C compiler
 # remove /Ofast for fast compilation (30 sec) and slower execution
-# add /Ofast for for slower compilation (20 min) and abotu 2x faster execution
-CFLAGS=/nologo /w 	
+# add /Ofast for for slower compilation (20 min) and about 2x faster execution
+CFLAGS=/nologo /w /Ofast
 
 # uncomment the following line to build both mex functions (the S-function binary should be added here also)
 all: das3mex.mexw64 das3steptest.mexw64	
@@ -36,7 +36,9 @@ autolevclean.exe: autolevclean.c
 		
 # make das3step.obj from das3mex.c (see #ifdef DAS3STEP in das3mex.c)
 das3step.obj: das3mex.c das3mex.h 
-		$(MEX) -c -DDAS3STEP das3mex.c
+#  		$(MEX) -c -DDAS3STEP das3mex.c
+# following line to use the Gauss-Jordan solver (which is too slow, 6.2 ms per time step)
+        $(MEX) -c -DDAS3STEP -DGAUSSJ das3mex.c
 		del /q das3step.obj
 		rename das3mex.obj das3step.obj
 
