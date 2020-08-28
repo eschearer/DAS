@@ -139,18 +139,18 @@ int gaussj(int N, double* A, double *b) {
 // result x is returned in b
 // function returns 1 when successful, 0 when zero pivot is detected
 
-    int i,j,k,jj,ipivot;
+    int i,j,kj,k1,k2,jj,ipivot;
     double absAji, Amax, Aij, tmp;
     
     // This is the main loop that goes through all the columns:
     for (j=0; j<N; j++) {
-
+		kj = N*j;		// start of column j
         // Find the largest element in the column, starting at row j,
         // to use as a pivot:
         Amax = 0;
-		k = N*j+j;
+		k1 = kj+j;
         for (i=j; i<N; i++) {
-            absAji = fabs(A[k++]);
+            absAji = fabs(A[k1++]);
             if (absAji > Amax) {
                 Amax = absAji;
                 ipivot = i;
@@ -161,12 +161,16 @@ int gaussj(int N, double* A, double *b) {
         // Divide row ipivot by A(ipivot,j), and do the same to b
         // This makes A(ipivot,j) equal to 1.0
         // At the same time, exchange rows ipivot and j so A(i,j) goes to the diagonal
-        Aij = A[N*j+ipivot];
-        for (jj=0; jj<N; jj++) {
+        Aij = A[kj+ipivot];
+		k1 = kj+ipivot;
+		k2 = kj+j;
+        for (jj=j; jj<N; jj++) {
             // divide row ipivot of A by Aij and exchange row ipivot and row j
-            tmp = A[N*jj+ipivot]/Aij;
-            A[N*jj+ipivot] = A[N*jj+j];
-            A[N*jj+j] = tmp;
+            tmp = A[k1]/Aij;
+            A[k1] = A[k2];
+            A[k2] = tmp;
+			k1 = k1+N;
+			k2 = k2+N;
         }
         // same for b
         tmp  = b[ipivot]/Aij;
@@ -177,12 +181,16 @@ int gaussj(int N, double* A, double *b) {
         // all of column j of A, except for element A(j,j)
         // and do same for b
         for (i=0; i<N; i++) if (i != j) {
-            Aij = A[N*j+i];
+            Aij = A[kj+i];
 			if (Aij != 0.0) {
+				k1 = kj+j;
+				k2 = kj+i;
 				for (jj=j; jj<N; jj++) { 
-					A[N*jj+i] = A[N*jj+i] - Aij*A[N*jj+j];
+					A[k2] -= Aij*A[k1];
+					k1 = k1+N;
+					k2 = k2+N;
 				}
-				b[i] = b[i] - Aij*b[j];
+				b[i] -= Aij*b[j];
 			}
         }
     }
