@@ -132,26 +132,26 @@ static double qTH[3],mTH[3];
 // ==============================================
 // linear equation solver
 // ==============================================
-int gaussj(int N, double* A, double *b) {
-// Solves A*x=b using Gauss-Jordan elimination with partial pivoting
+int gaussb(int N, double* A, double *b) {
+// Solves A*x=b using Gaussian elimination with partial pivoting
 // and backsubstitution
-// A is a NxN matrix, stored as a sequence of N columns
+// A is a NxN matrix, stored as a sequence of N rows
 // b is a Nx1 column
 // result x is returned in b
 // function returns 1 when successful, 0 when zero pivot is detected
 
-    int i,j,kj,ki,k1,k2,jj,ipivot;
+    int i,j,ki,k1,k2,jj,ipivot;
     double absAji, Amax, Aij, tmp;
-    
+	  
     // This is the main loop that goes through all the columns:
     for (j=0; j<N; j++) {
-		kj = N*j;		// start of column j
         // Find the largest element in the column, starting at row j,
         // to use as a pivot:
         Amax = 0;
-		k1 = kj+j;
+		k1 = j+N*j;
         for (i=j; i<N; i++) {
-            absAji = fabs(A[k1++]);
+            absAji = fabs(A[k1]);
+			k1 = k1+N;
             if (absAji > Amax) {
                 Amax = absAji;
                 ipivot = i;
@@ -162,34 +162,30 @@ int gaussj(int N, double* A, double *b) {
         // Divide row ipivot by A(ipivot,j), and do the same to b
         // This makes A(ipivot,j) equal to 1.0
         // At the same time, exchange rows ipivot and j so A(i,j) goes to the diagonal
-        Aij = A[kj+ipivot];
-		k1 = kj+ipivot;
-		k2 = kj+j;
+		k1 = j+N*ipivot;
+		k2 = j+N*j;
+        Aij = A[k1];
         for (jj=j; jj<N; jj++) {
             // divide row ipivot of A by Aij and exchange row ipivot and row j
             tmp = A[k1]/Aij;
-            A[k1] = A[k2];
-            A[k2] = tmp;
-			k1 = k1+N;
-			k2 = k2+N;
+            A[k1++] = A[k2];
+            A[k2++] = tmp;
         }
         // same for b
         tmp  = b[ipivot]/Aij;
         b[ipivot] = b[j];
         b[j] = tmp;
-        
+		
         // Subtract multiples of row j from other rows, to zero out
         // all of column j of A, below the diagonal
         // and do same for b
         for (i=j+1; i<N; i++) {
-            Aij = A[kj+i];
+			k2 = j+N*i;
+            Aij = A[k2];
 			if (Aij != 0.0) {
-				k1 = kj+j;
-				k2 = kj+i;
+				k1 = j+N*j;
 				for (jj=j; jj<N; jj++) { 
-					A[k2] -= Aij*A[k1];
-					k1 = k1+N;
-					k2 = k2+N;
+					A[k2++] -= Aij*A[k1++];
 				}
 				b[i] -= Aij*b[j];
 			}
@@ -198,15 +194,13 @@ int gaussj(int N, double* A, double *b) {
 	
 	// A is now an upper triangular matrix, and we can solve x by backsubstitution
 	// start at row N
-	for (i=N-1; i>=0; i--) {
+	for (i=N-2; i>=0; i--) {
 		// from b(i), subtract the sum of A(i,j)*b(j) for all j to the right of the diagonal
-		ki = (N-1)*N+i;    // A[ki] is A(i,N)
+		ki = N*i + N-1;    // A[ki] is A(i,N)
 		for (j=N-1; j>i; j--) {
-			b[i] -= A[ki]*b[j];
-			ki = ki-N;
+			b[i] -= A[ki--]*b[j];
 		}
 	}
-	
     return 0;  // zero indicates success
 }
 // ===================================================================================
@@ -903,7 +897,8 @@ void das3_dynamics (double x[NSTATES], double xdot[NSTATES], double u[NSTATES],
 }
 
 // ====================================================================================================
-// das3step function is compiled when compiler command line includes /D DAS3STEP
+// When compiler command line includes /D DAS3STEP, the das3step function is compiled,
+// otherwise, the das3mex function is compiled.
 // ====================================================================================================
 #ifdef DAS3STEP		
 
@@ -975,13 +970,13 @@ int das3step(		double x[NSTATES],		// input/output: state before and after the t
 	// A3 is diag(dh/da(138x1) + dh/dadot(138,1)/hh);
 
 	// fill A1 with zeros
-	for (i=0; i<(2*NDOF+NMUS)*(2*NDOF+NMUS); i++) A1[i] = 0.0;
+	for (i=0; i<nrows*nrows; i++) A1[i] = 0.0;
 	
 	// the first NDOF rows of f are: qdot-dq/dt = 0
 	for (i=0; i<NDOF; i++) {
-		// f[i] = x[NDOF+i] - xdot[i];   	// this is how these tows of f[] were generated
-		A1[i + nrows*(NDOF+i)] = 1.0;  		// df/dx row i, column NDOF+1
-		A1[i + nrows*i]   = -1.0/hh; 	   	// df/dxdot row i, column i, divided by hh
+		// f[i] = x[NDOF+i] - xdot[i];   	// this is how these rows of f[] were generated in das3_dynamics()
+		A1[nrows*i + NDOF+i] = 1.0;		// df/dx row i, column NDOF+i
+		A1[nrows*i + i] = -1.0/hh;		// df/dxdot row i, column i, divided by hh
 	}
 		
 	// the next NDOF rows of the IDE are the equations of motion from Autolev, the "zero" expressions
@@ -990,15 +985,15 @@ int das3step(		double x[NSTATES],		// input/output: state before and after the t
 		
 		// put dzero/dq in A1 row NDOF+i, columns 1..NDOF
 		for (j=0; j<NDOF; j++) {
-			int ii = NDOF+i + nrows*j;       // index of row NDOF+i, column j
+			int ii = nrows*(NDOF+i) + j;       // index of row NDOF+i, column j
 			A1[ii] = dz_dq[i][j];            // df/dx row NDOF+i, column j
 			// add the contributions dz/dmom * dmom/dq to this element of df/dx (dz/dmom is 11x11 identity matrix)
 			A1[ii] = A1[ii] + dmom_dang[i][j];
 		}
 		
-		// put dzero/dq + dzero/dqdd/hh in A1 row NDOF+i, columns NDOF+1 to 2*NDOF
+		// put dzero/dqd + dzero/dqdd/hh in A1 row NDOF+i, columns NDOF+1 to 2*NDOF
 		for (j=0; j<NDOF; j++) {
-			int ii = NDOF+i + nrows*(NDOF+j);
+			int ii = nrows*(NDOF+i) + NDOF+j;
 			A1[ii] = dz_dqd[i][j] + dz_dqdd[i][j]/hh;  // df/dxdot, row NDOF+i, column NDOF+j
 			// add the contributions dz/dmom * dmom/dqdot (dz/dmom is eye(11) and dmom_dangvel is diagonal)
 			if (j==i) A1[ii] = A1[ii] + dmom_dangvel[j];
@@ -1006,8 +1001,8 @@ int das3step(		double x[NSTATES],		// input/output: state before and after the t
 		
 		// put dzero/dLce in A1 row NDOF+i, columns 2*NDOF+1 to 2*NDOF+NMUS
 		for (j=0; j<NMUS; j++) {
-			int ii = NDOF+i + nrows*(2*NDOF+j);   // index of row NDOF+1, column 2*NDOF+j
-			// dzero/dmom is the identity matrix
+			int ii = nrows*(NDOF+i) + 2*NDOF+j;   // index of row NDOF+1, column 2*NDOF+j
+			// dzero/dmom is the identity matrix so we don't need chain rule
 			A1[ii] = A1[ii] + dmom_dLce[i][j];
 		}
 	}
@@ -1018,24 +1013,13 @@ int das3step(		double x[NSTATES],		// input/output: state before and after the t
 		
 		// put dg/dq in A1 row 2*NDOF+i, columns 1 to NDOF
 		for (j=0; j<NDOF; j++) {
-			int ii = 2*NDOF+i + nrows*j;     	// index of row 2*NDOF+i, column j
+			int ii = nrows*(2*NDOF+i) + j;     	// index of row 2*NDOF+i, column j
 			A1[ii] = dg_dLm[i]*dLm_dang[i][j];  // store the value of this matrix element
 		}
 		
 		// put dg/dLce + dg/dLcedot/hh in A1 row 2*NDOF+i, columns 2*NDOF+1 to 2*NDOF+NMUS
 		// there is only one element on each row, from Lce of the same muscle
-		A1[2*NDOF+i + nrows*(2*NDOF+i)] = dg_dLce[i] + dg_dLcedot[i]/hh;
-
-	}
-	
-	if ( 0 ) {
-		FILE *fid;
-		fid = fopen("A1.txt","w");
-		for (i=0; i<nrows; i++) {
-			for (j=0; j<nrows; j++) fprintf(fid,"%22.15e ", A1[i + nrows*j]);
-			fprintf(fid,"\n");
-		}
-		fclose(fid);
+		A1[nrows*(2*NDOF+i) + 2*NDOF+i] = dg_dLce[i] + dg_dLcedot[i]/hh;
 	}
 	
 	// construct b = (dfdxdot*xdot - f - dfdu*du)
@@ -1061,33 +1045,14 @@ int das3step(		double x[NSTATES],		// input/output: state before and after the t
 	// solve dx2
 	for (i=0; i<NMUS; i++) dx[2*NDOF+NMUS+i] = b2[i] / ( dh_da[i] + dh_dadot[i]/hh );
 	
-	// for (i=0; i<NMUS; i++) {
-		// printf("b2[%3d]=%12.5e  dx[%3d]=%12.5e\n",i,b2[i],2*NDOF+NMUS+i,dx[2*NDOF+NMUS+i]);
-	// }
-	
 	// subtract A2*dx2 from b1.  A2 only has nonzeros in the contraction dynamics rows, and there it is diagonal dg/da
 	for (i=0; i<NMUS; i++) b1[2*NDOF+i] = b1[2*NDOF+i] - dg_da[i]*dx[2*NDOF+NMUS+i];
 	
-	#ifdef GAUSSJ
-	// do the linear solve with the gauss-jordan solver
-		if ( gaussj(2*NDOF+NMUS,A1,b1) ) {
-			printf("das3step: gaussj detected a zero pivot.\n");
-		}
-	#else	
-	// do the linear solve for dx1 using LAPACK function dgesv
-	{
-		size_t one = 1;
-		size_t n   = 2*NDOF + NMUS;
-		size_t ipivot[(2*NDOF+NMUS)*(2*NDOF+NMUS)];		// dgesv will report the pivots here
-		size_t info;
-		dgesv(&n,&one,A1,&n,ipivot,b1,&n,&info);
-		if (info != 0) {
-			// info codes are explained here: http://www.netlib.org/lapack/explore-html/d7/d3b/group__double_g_esolve_ga5ee879032a8365897c3ba91e3dc8d512.html
-			printf("das3step: dgesv info code is %d\n", info);
-			return 3; 
-		}
+	// do the linear solve with the gaussian elimination solver
+	if ( gaussb(2*NDOF+NMUS,A1,b1) ) {
+		printf("das3step: gaussj detected a zero pivot.\n");
 	}
-	#endif
+
 	for (i=0; i<2*NDOF+NMUS; i++) dx[i] = b1[i];	// copy the result into the first 160 elements of dx
 	
 	// return x = x+dx, update xdot

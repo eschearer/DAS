@@ -36,16 +36,14 @@ autolevclean.exe: autolevclean.c
 		
 # make das3step.obj from das3mex.c (see #ifdef DAS3STEP in das3mex.c)
 das3step.obj: das3mex.c das3mex.h 
-#  		$(MEX) -c -DDAS3STEP das3mex.c
-# following line to use the Gauss-Jordan solver instead of LAPACK dgesv (slower, 2.2 ms per time step)
-        $(MEX) -c -DDAS3STEP -DGAUSSJ das3mex.c
+        $(MEX) -c -DDAS3STEP das3mex.c
 		del /q das3step.obj
 		rename das3mex.obj das3step.obj
 
 # make the das3step testing program.  the eventual S-function should be compiled in a similar way
 # Matlab mex recognizes the -lmwlapack option to link with the LAPACK linear algebra functions
 das3steptest.mexw64: das3steptest.c das3step.obj das3_al.obj
-		$(MEX) das3steptest.c das3step.obj das3_al.obj -lmwlapack
+		$(MEX) das3steptest.c das3step.obj das3_al.obj
 
 # run Autolev on Ton's computer, when das3_al_raw.c is outdated
 !IF "$(COMPUTERNAME)" == "LRI-102855"
