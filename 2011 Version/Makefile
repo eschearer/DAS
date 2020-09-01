@@ -36,9 +36,9 @@ autolevclean.exe: autolevclean.c
 		
 # make das3step.obj from das3mex.c (see #ifdef DAS3STEP in das3mex.c)
 das3step.obj: das3mex.c das3mex.h 
-  		$(MEX) -c -DDAS3STEP das3mex.c
+#  		$(MEX) -c -DDAS3STEP das3mex.c
 # following line to use the Gauss-Jordan solver instead of LAPACK dgesv (slower, 2.2 ms per time step)
-#        $(MEX) -c -DDAS3STEP -DGAUSSJ das3mex.c
+        $(MEX) -c -DDAS3STEP -DGAUSSJ das3mex.c
 		del /q das3step.obj
 		rename das3mex.obj das3step.obj
 

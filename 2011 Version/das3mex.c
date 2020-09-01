@@ -134,12 +134,13 @@ static double qTH[3],mTH[3];
 // ==============================================
 int gaussj(int N, double* A, double *b) {
 // Solves A*x=b using Gauss-Jordan elimination with partial pivoting
+// and backsubstitution
 // A is a NxN matrix, stored as a sequence of N columns
 // b is a Nx1 column
 // result x is returned in b
 // function returns 1 when successful, 0 when zero pivot is detected
 
-    int i,j,kj,k1,k2,jj,ipivot;
+    int i,j,kj,ki,k1,k2,jj,ipivot;
     double absAji, Amax, Aij, tmp;
     
     // This is the main loop that goes through all the columns:
@@ -177,10 +178,10 @@ int gaussj(int N, double* A, double *b) {
         b[ipivot] = b[j];
         b[j] = tmp;
         
-        // Subtract multiples of row j from all other rows, to zero out
-        // all of column j of A, except for element A(j,j)
+        // Subtract multiples of row j from other rows, to zero out
+        // all of column j of A, below the diagonal
         // and do same for b
-        for (i=0; i<N; i++) if (i != j) {
+        for (i=j+1; i<N; i++) {
             Aij = A[kj+i];
 			if (Aij != 0.0) {
 				k1 = kj+j;
@@ -194,6 +195,18 @@ int gaussj(int N, double* A, double *b) {
 			}
         }
     }
+	
+	// A is now an upper triangular matrix, and we can solve x by backsubstitution
+	// start at row N
+	for (i=N-1; i>=0; i--) {
+		// from b(i), subtract the sum of A(i,j)*b(j) for all j to the right of the diagonal
+		ki = (N-1)*N+i;    // A[ki] is A(i,N)
+		for (j=N-1; j>i; j--) {
+			b[i] -= A[ki]*b[j];
+			ki = ki-N;
+		}
+	}
+	
     return 0;  // zero indicates success
 }
 // ===================================================================================
