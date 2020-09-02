@@ -185,6 +185,8 @@ int gaussb(int N, double* A, double *b) {
 			if (Aij != 0.0) {
 				k1 = j+N*j;
 				for (jj=j; jj<N; jj++) { 
+					// the following line is executed (N^2)/3 times (for large N)
+					// tried skipping this line when A[k1] is zero but that was slower
 					A[k2++] -= Aij*A[k1++];
 				}
 				b[i] -= Aij*b[j];
