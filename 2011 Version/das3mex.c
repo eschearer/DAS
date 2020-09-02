@@ -133,62 +133,35 @@ static double qTH[3],mTH[3];
 // linear equation solver
 // ==============================================
 int gaussb(int N, double* A, double *b) {
-// Solves A*x=b using Gaussian elimination with partial pivoting
-// and backsubstitution
+// Solves A*x=b using Gaussian elimination with diagonal pivots, and backsubstitution.
+// For the das3step function, this was faster and slightly more accurate than partial pivoting.
 // A is a NxN matrix, stored as a sequence of N rows
 // b is a Nx1 column
 // result x is returned in b
 // function returns 1 when successful, 0 when zero pivot is detected
 
-    int i,j,ki,k1,k2,jj,ipivot;
-    double absAji, Amax, Aij, tmp;
+    int i,j,ki,k1,k2,jj;
+    double Ajj, Aij;
 	  
     // This is the main loop that goes through all the columns:
     for (j=0; j<N; j++) {
-        // Find the largest element in the column, starting at row j,
-        // to use as a pivot:
-        Amax = 0;
-		k1 = j+N*j;
-        for (i=j; i<N; i++) {
-            absAji = fabs(A[k1]);
-			k1 = k1+N;
-            if (absAji > Amax) {
-                Amax = absAji;
-                ipivot = i;
-            }
-        }
-        if (Amax == 0) return 1;  // zero pivot (matrix is singular)
-
-        // Divide row ipivot by A(ipivot,j), and do the same to b
-        // This makes A(ipivot,j) equal to 1.0
-        // At the same time, exchange rows ipivot and j so A(i,j) goes to the diagonal
-		k1 = j+N*ipivot;
-		k2 = j+N*j;
-        Aij = A[k1];
-        for (jj=j; jj<N; jj++) {
-            // divide row ipivot of A by Aij and exchange row ipivot and row j
-            tmp = A[k1]/Aij;
-            A[k1++] = A[k2];
-            A[k2++] = tmp;
-        }
-        // same for b
-        tmp  = b[ipivot]/Aij;
-        b[ipivot] = b[j];
-        b[j] = tmp;
+        // Divide row j by A(j,j), and do the same to b
+        // This makes A(j,j) equal to 1.0
+ 		k1 = j+N*j;
+        Ajj = A[k1];
+        for (jj=j; jj<N; jj++) A[k1++] /= Ajj;
+        b[j] /= Ajj;
 		
         // Subtract multiples of row j from other rows, to zero out
-        // all of column j of A, below the diagonal
-        // and do same for b
+        // all of column j of A, below the diagonal, and do same for b
         for (i=j+1; i<N; i++) {
 			k2 = j+N*i;
             Aij = A[k2];
 			if (Aij != 0.0) {
 				k1 = j+N*j;
-				for (jj=j; jj<N; jj++) { 
-					// the following line is executed (N^2)/3 times (for large N)
-					// tried skipping this line when A[k1] is zero but that was slower
-					A[k2++] -= Aij*A[k1++];
-				}
+				// the following line is executed (N^2)/3 times (for large N)
+				// tried skipping this line when A[k1] is zero but that was slower
+				for (jj=j; jj<N; jj++) A[k2++] -= Aij*A[k1++];
 				b[i] -= Aij*b[j];
 			}
         }
